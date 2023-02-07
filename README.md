@@ -5,9 +5,11 @@ Usage:  findit [opts] [rootdir] searchterm
 
 Opts: -x ext, -i, -L, -d
 
--x: search only files matching this extension
--i: ignore case
--L: enumerate filenames that __don't__ contain `searchterm`
--d: debug/verbose
+|opt|Description|
+|:--|:--|
+|-x| search only files matching provided file extension (eg `rs`)|
+|-i| ignore case|
+|-L| enumerate filenames that __don't__ contain `searchterm`|
+|-d| debug/verbose|
 
 
