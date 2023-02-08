@@ -191,8 +191,8 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
                         let nfnm = fnm.replace("\\", "/");
                         println!("{}", nfnm.cyan());
                     }
-                    let oline = format!("{}", lineno);
-                    println!(" {}: {line}", oline.red());
+                    let oline = format!("{:width$}", lineno, width=4);
+                    println!(" {}: {line}", oline.blue());
                 }
             }
         },
