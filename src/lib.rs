@@ -17,7 +17,8 @@ pub struct Config
 
 impl Config
 {
-    pub fn new(args: &[String]) -> Result<Config, &'static str>
+    pub fn new(mut args: impl Iterator<Item = String>) 
+            -> Result<Config, &'static str>
     {
         let mut query: String = String::new();
         let mut rootdir:String = String::from(".");
@@ -27,23 +28,16 @@ impl Config
         let mut err = true;
         let mut debug: bool = false;
 
+
         // let apppath = Path::new(&args[0]);
         // let appnm = apppath.file_stem().unwrap();
-
-        let mut i = 1;
-        while i < args.len()
+        while let Some(arg) = args.next()
         {
-            let arg: &String = &args[i];
             if arg == "-x" // -x ext
             {
-                i += 1;
-                if i < args.len()
+                if let Some(field) = args.next()
                 {
-                    ext = args[i].clone();
-                }
-                else
-                {
-                    break;
+                    ext = field;
                 }
             }
             else
@@ -63,24 +57,17 @@ impl Config
             }
             else
             {
-                // either startdir or searchstring
-                if i+1 == args.len()
+                if query.len() > 0
                 {
-                    query = args[i].clone();
+                    rootdir = query;
+                    query = arg;
+                }
+                else
+                {
+                    query = arg;
                     err = false;
                 }
-                else
-                if i+2 == args.len()
-                {
-                    rootdir = args[i].clone();
-                }
-                else
-                {
-                    // error
-                    break;
-                }
             }
-            i += 1;
         }
         if err
         {
@@ -211,7 +198,9 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
         },
         Err(_) =>
         {
-            println!("Problem reading {:?} -------------------", osfn.to_str().unwrap());
+            println!("{} {} -------------------", 
+                "Problem reading".red(),
+                osfn.to_str().unwrap().yellow());
         }
     }
 }
