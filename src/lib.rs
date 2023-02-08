@@ -208,31 +208,36 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
 pub fn search<'a>(query: &str, contents: &'a str, cfg: &Config)
     -> Vec<(&'a str, i32)>
 {
-    let mut results = Vec::new();
     let mut lineno = 1;
     if cfg.nocase
     {
-        for line in contents.lines()
-        {
-            if line.to_lowercase().contains(query)
-            {
-                results.push((line, lineno));
-            }
-            lineno += 1;
-        }
+        return contents
+            .lines()
+            .filter(|line| 
+                {
+                    line.to_lowercase().contains(query)
+                })
+            .map(|line| 
+                {
+                    let ret = (line, lineno);
+                    lineno += 1;
+                    return ret;
+                })
+            .collect();
     }
     else
     {
-        for line in contents.lines()
-        {
-            if line.contains(query)
-            {
-                results.push((line, lineno));
-            }
-            lineno += 1;
-        }
+        return contents
+            .lines()
+            .filter(|line| line.contains(query))
+            .map(|line| 
+                {
+                    let ret = (line, lineno);
+                    lineno += 1;
+                    return ret;
+                })
+            .collect();
     }
-    return results;
 }
 
 static IGNORE_DIRENT_SET: phf::Set<&'static str> =

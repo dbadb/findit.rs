@@ -4,6 +4,7 @@ use findit::Config;
 
 fn main() 
 {
+
     let config = Config::new(env::args())
         .unwrap_or_else(|err|
         {

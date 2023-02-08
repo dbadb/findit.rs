@@ -3,7 +3,7 @@
 - [Option](#option)
   - [Short circuiting](#short-circuiting)
 - [Result](#result)
-  - [Short circuiting with `?`:](#short-circuiting-with-)
+  - [Short circuiting with `?` (return on error)](#short-circuiting-with--return-on-error)
 - [Converting String Types](#converting-string-types)
 - [Slices](#slices)
 - [Fn closures](#fn-closures)
@@ -70,7 +70,10 @@ enum Result<T, E> {
 }
 ```
 
-### Short circuiting with `?`:
+Use `match` since Result is enum.  Useful methods of 
+Result: `is_ok()`, `is_err()`.
+
+### Short circuiting with `?` (return on error)
 
 replace this:
 ```rs
@@ -106,6 +109,7 @@ fn write_info(info: &Info) -> io::Result<()>
     Ok(())
 }
 ```
+
 ---
 
 ## Converting String Types
@@ -243,6 +247,19 @@ their internal state changes on `next()`.
 > can call `into_iter` instead of `iter`.  Similarly, if 
 > we want to iterate over mutable references, we can 
 > call `iter_mut` instead of `iter`.
+
+```rs
+fn doit(mut args: impl Iterator<Item = String>
+{
+    while let Some(arg) = args.next() 
+    {
+        /*d o stuff 
+         * can call args.next() within.. 
+         * also: if let x = args.next() to protect against end-of-it
+         */
+    }
+}
+```
 
 ### consuming adaptor (eg sum)
 
