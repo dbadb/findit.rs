@@ -152,20 +152,20 @@ fn visit_files_below(dir: &Path, cfg: &Config,
 fn file_is_interesting(file_path: &Path, cfg: &Config) -> bool
 {
     let x = file_path.extension();
-    if x == None && cfg.ext == ""
+    match x
     {
-        // always explore files with no extension unless user provides
-        // explicit extension
-        return true;
-    }
-    let ext: &OsStr = x.unwrap();
-    if cfg.ext != "" 
-    {
-        return cfg.ext.as_str() == ext;
-    }
-    else
-    {
-        return !fileext_implies_binary(ext);
+        None => cfg.ext == "",
+        Some(x) =>
+        {
+            if cfg.ext != "" 
+            {
+                return cfg.ext.as_str() == x;
+            }
+            else
+            {
+                return !fileext_implies_binary(x);
+            }
+        }
     }
 }
 

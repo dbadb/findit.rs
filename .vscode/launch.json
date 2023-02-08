@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceRoot}/target/debug/findit.exe",
-            "args": ["C:/JUCE", "foo"],
+            "args": ["-x", "cpp", "-d", "C:/JUCE", "foobaz"],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
