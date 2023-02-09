@@ -4,12 +4,40 @@
   - [Short circuiting](#short-circuiting)
 - [Result](#result)
   - [Short circuiting with `?` (return on error)](#short-circuiting-with--return-on-error)
+- [Loops](#loops)
+  - [iterator loops](#iterator-loops)
 - [Converting String Types](#converting-string-types)
 - [Slices](#slices)
 - [Fn closures](#fn-closures)
 - [Iterators](#iterators)
   - [consuming adaptor (eg sum)](#consuming-adaptor-eg-sum)
   - [iterator adaptor](#iterator-adaptor)
+- [Rc\<T\> , Weak\<T\>](#rct--weakt)
+- [RefCell and Interior Mutability](#refcell-and-interior-mutability)
+- [Patterns](#patterns)
+  - [match arms](#match-arms)
+  - [conditional if/while let](#conditional-ifwhile-let)
+  - [destructuring](#destructuring)
+  - [multiple patterns](#multiple-patterns)
+  - [destructuring enum with match](#destructuring-enum-with-match)
+- [Trait Objects](#trait-objects)
+  - [Traits as parameters](#traits-as-parameters)
+  - [Implementation](#implementation)
+  - [Conditional Implementation](#conditional-implementation)
+  - [Heterogenous Collections](#heterogenous-collections)
+- [Common Traits](#common-traits)
+  - [Display](#display)
+  - [Drop](#drop)
+  - [Copy](#copy)
+  - [Clone](#clone)
+  - [Debug](#debug)
+  - [PartialOrd](#partialord)
+  - [Send, Sync (std::marker)](#send-sync-stdmarker)
+  - [Summary (example)](#summary-example)
+- [Concurrency](#concurrency)
+  - [message passing](#message-passing)
+  - [Mutex\<T\>](#mutext)
+- [Documenting](#documenting)
 - [Optimizating](#optimizating)
 - [Resources](#resources)
 
@@ -112,6 +140,28 @@ fn write_info(info: &Info) -> io::Result<()>
 
 ---
 
+## Loops
+
+### iterator loops
+
+```rs
+let v = &["apples", "cake", "coffee"]; // ref to array
+
+for text in v {
+    println!("I like {}.", text);
+}
+
+let mut sum = 0;
+// 1..11 is a range expression, 
+// [1..11] is an array with one range expression
+for n in 1..11 { 
+    sum += n;
+}
+assert_eq!(sum, 55);
+```
+
+---
+
 ## Converting String Types
 
 https://profpatsch.de/notes/rust-string-conversions
@@ -120,7 +170,7 @@ https://profpatsch.de/notes/rust-string-conversions
 
 ## Slices
 
-tbd
+https://doc.rust-lang.org/reference/types/slice.html
 
 ---
 
@@ -287,6 +337,337 @@ assert_eq!(v2, vec![2, 3, 4]);
 > to get results from calls to iterator adapters.
 
 ---
+## Rc\<T\> , Weak\<T\>
+
+ref-counted smart pointer, aka `shared_ptr`
+
+```rs
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+
+enum List {
+ Cons(i32, Rc<List>),
+ Nil,
+}
+use crate::List::{Cons, Nil}; // refer to names in List above
+use std::rc::Rc;
+fn main() {
+   let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+   let b = Cons(3, Rc::clone(&a));
+   let c = Cons(4, Rc::clone(&a));
+}
+
+#[derive(Debug)]
+struct Node {
+ value: i32,
+ parent: RefCell<Weak<Node>>,
+ children: RefCell<Vec<Rc<Node>>>,
+}
+```
+
+## RefCell and Interior Mutability
+
+* `Rc<T>` enables multiple owners of the same data; Box<T> and RefCell<T>
+  have single owners.
+* `Box<T>` allows immutable or mutable borrows checked at compile time;
+  `Rc<T>` allows only immutable borrows checked at compile time; RefCell<T>
+  allows immutable or mutable borrows checked at runtime.
+* Because `RefCell<T>` allows mutable borrows checked at runtime, you
+  can mutate the value inside the RefCell<T> even when the RefCell<T> is
+  immutable.
+
+```rs
+#[derive(Debug)]
+enum List {
+ Cons(Rc<RefCell<i32>>, Rc<List>),
+ Nil,
+}
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+fn main() {
+ let value = Rc::new(RefCell::new(5));
+ let a = Rc::new(Cons(Rc::clone(&value), Rc::new(Nil)));
+ let b = Cons(Rc::new(RefCell::new(3)), Rc::clone(&a));
+ let c = Cons(Rc::new(RefCell::new(4)), Rc::clone(&a));
+ *value.borrow_mut() += 10;
+ println!("a after = {:?}", a);
+ println!("b after = {:?}", b);
+ println!("c after = {:?}", c);
+}
+```
+
+## Patterns
+
+> Patterns are a special syntax in Rust for matching 
+> against the structure of types, both complex and 
+> simple. Using patterns in conjunction with match 
+> expressions and other constructs gives you more 
+> control over a program’s control flow.
+
+### match arms
+
+Matches must be _exhaustive_. Use `_` as default case.
+
+```rs
+match VALUE {
+ PATTERN => EXPRESSION,
+ PATTERN => EXPRESSION,
+ PATTERN => EXPRESSION,
+}
+```
+
+### conditional if/while let
+
+```rs
+let mut stack = Vec::new();
+stack.push(1);
+stack.push(2);
+stack.push(3);
+while let Some(top) = stack.pop() {
+ println!("{top}");
+}
+```
+
+### destructuring
+
+```rs
+let ((feet, inches), Point { x, y }) =
+        ((3, 10), Point { x: 3, y: -10 });
+```
+
+### multiple patterns
+
+```rs
+println!("Multimatcher");
+for x in 1..9
+{
+    match x {
+        x if x %5 == 0 => println!("{x} is multiple of 5"),
+        1 | 2 => println!("{x} is one or two"),
+        3 => println!("{x} is three"),
+        4..=6 => println!("{x} is 4-6"),
+        _ => println!("{x} is everything else"),
+    }
+}
+```
+
+### destructuring enum with match
+```rs
+enum Message {
+ Quit,
+ Move { x: i32, y: i32 },
+ Write(String),
+ ChangeColor(i32, i32, i32),
+}
+fn main() {
+ let msg = Message::ChangeColor(0, 160, 255);
+ match msg {
+   Message::Quit => {
+     println!("The Quit variant has no data to destructure.");
+    }
+    Message::Move { x, y } => {
+     println!("Move in the x dir {x}, in the y dir {y}");
+    }
+    Message::Write(text) => {
+     println!("Text message: {text}");
+    }
+    Message::ChangeColor(r, g, b) => {
+     println!("Change color to red {r}, green {g}, and blue {b}");
+    }
+}
+```
+
+## Trait Objects
+
+> When we use trait objects, Rust must use dynamic dispatch.
+
+```rs
+pub trait Draw
+{
+    fn draw(&self);
+}
+```
+
+### Traits as parameters
+
+```rs
+pub fn calldraw(item: &impl Draw) {
+    item.draw();
+}
+// sugar-for
+pub fn calldraw<T: Draw>(item: &T) {
+    item.draw();
+}
+// multiple-traits
+pub fn calldraw<T: Draw + Summary>(item: &T) 
+
+// multiple-traits via where clause, and return traits
+pub fn calldraw<T, U>(t: &T, u: &U) -> impl Summary
+where
+    T: Draw + Summary
+    U: Clone + Debug
+```
+
+### Implementation
+
+```rs
+impl Summary for Tweet {
+ fn summarize_author(&self) -> String {
+    format!("@{}", self.username)
+ }
+}
+```
+
+### Conditional Implementation
+```rs
+impl<T:Display> ToString for T {}
+```
+
+### Heterogenous Collections
+```rs
+drawable: Vec<Box<dyn Draw>>
+```
+
+## Common Traits
+
+### Display
+
+### Drop
+```rs
+impl Drop for CustomSmartPointer {
+ fn drop(&mut self) {
+   println!("Dropping CustomSmartPointer with data `{}`!",
+     self.data);
+ }
+}
+```
+
+### Copy
+
+### Clone
+
+### Debug
+
+```rs
+#[derive(Debug)]
+struct Rectangle {
+ width: u32,
+ height: u32,
+}
+```
+
+### PartialOrd
+
+### Send, Sync (std::marker)
+
+> The Send marker trait indicates that ownership of values of 
+> the type implementing Send can be transferred between threads.
+> notably, Rc\<T\> can't be sent.
+
+>The Sync marker trait indicates that it is safe for the type implementing Sync
+>to be referenced from multiple threads. In other words, any type T is Sync if
+>&T (an immutable reference to T) is Send, meaning the reference can be sent
+>safely to another thread. Similar to Send, primitive types are Sync, and types
+>composed entirely of types that are Sync are also Sync.
+
+### Summary (example)
+
+```rs
+pub trait Summary {
+ fn summarize(&self) -> String
+ {
+    return String::from("default summary");
+ }
+}
+```
+
+---
+## Concurrency
+
+```rs
+use std::thread;
+fn main() {
+ let v = vec![1, 2, 3]; // move closure
+ let handle = thread::spawn(move || {
+    println!("Here's a vector: {:?}", v);
+ });
+ handle.join().unwrap();
+}
+```
+
+### message passing
+
+```rs
+use std::sync::mpsc;
+use std::thread;
+fn main() {
+ let (tx, rx) = mpsc::channel();
+ thread::spawn(move || {
+    let val = String::from("hi");
+    tx.send(val).unwrap();
+ });
+ let received = rx.recv().unwrap();
+ println!("Got: {received}");
+}
+```
+
+### Mutex\<T\>
+
+> As you might suspect, Mutex<T> is a smart pointer. More accurately, 
+> the call to lock returns a smart pointer called MutexGuard, 
+> wrapped in a LockResult that we handled with the call to unwrap.
+> The MutexGuard smart pointer implements Deref to point at our 
+> inner data; the smart pointer also has a Drop implementation 
+> that releases the lock automatically when a MutexGuard goes
+> out of scope, which happens at the end of the inner scope.
+```rs
+println!("Mutex/shared memory -------------");
+// NB: Rc not safe to share, use Arc (atomic refcount)
+let counter = Arc::new(Mutex::new(0)); 
+let mut handles = vec![];
+for _ in 0..10
+{
+    let counter = Arc::clone(&counter);
+    let handle = thread::spawn(move ||
+    {
+        // inner mutability via Mutex!
+        let mut num = counter.lock().unwrap(); 
+        *num += 1;
+    });
+    handles.push(handle);
+}
+
+for handle in handles
+{
+    handle.join().unwrap();
+}
+println!("Result: {}", *counter.lock().unwrap());
+```
+---
+## Documenting
+
+```rs
+//! # My Crate
+//!   
+//!   here are docs for my crate.
+```
+
+```rs
+/// Adds one to the number given.
+///
+/// # Examples
+///
+/// ```
+/// let arg = 5;
+/// let answer = my_crate::add_one(arg);
+///
+/// assert_eq!(6, answer);
+/// ```
+pub fn add_one(x: i32) -> i32 { return x+1; }
+```
+
+---
 
 ## Optimizating
 
@@ -300,6 +681,7 @@ https://docs.rs/noisy_float/latest/noisy_float/
 
 ## Resources
 
+* https://doc.rust-lang.org/reference/introduction.html
 * The Rust Programming Language 2nd Edition (Rust 2021)
   Klabnik, Nichols.
 * https://play.rust-lang.org/

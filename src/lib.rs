@@ -31,6 +31,8 @@ impl Config
 
         // let apppath = Path::new(&args[0]);
         // let appnm = apppath.file_stem().unwrap();
+        args.next(); // skip argv[0]
+
         while let Some(arg) = args.next()
         {
             if arg == "-x" // -x ext
@@ -80,6 +82,10 @@ impl Config
             if nocase
             {
                 query = query.to_lowercase();
+            }
+            if debug
+            {
+                println!("rootdir: {rootdir}, query: {query}");
             }
             return Ok(Config { query, rootdir, nocase, ext, invmatch, debug });
         }
@@ -329,6 +335,7 @@ phf_map!  {
     "rc" => true, // msvc resource
     "rtf" =>false, 
     "rib" =>false,
+    "rs" => true,
 
     "sf2" => false, // soundfile
     "sdf" => false, // msvc
@@ -350,10 +357,15 @@ phf_map!  {
     "tex" =>false,
     "ttf" =>false,
     "tpp" =>true,
+    "toml" => true,
     
     "wav" =>false,
 
     "xml" => true,
+
+    "yaml" => true,
+    "yml" => true,
+
     "xpm" =>false,
     "zip" =>false, 
     "z" => false,
