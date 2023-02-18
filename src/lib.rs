@@ -233,9 +233,9 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString,
         },
         Err(_) =>
         {
-            println!("{} {} -------------------", 
-                "Problem reading".red(),
-                osfn.to_str().unwrap().yellow());
+            let fnm = f.path().into_os_string().into_string().unwrap();
+            let nfnm = fnm.replace("\\", "/");
+            println!("{} {}", nfnm.cyan(), "skipped".red());
         }
     }
 }
