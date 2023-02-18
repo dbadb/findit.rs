@@ -8,10 +8,10 @@ use colored::*;
 pub struct Config
 {
     query: String,
-    rootdir: String,
-    ext: String,
-    invmatch: bool,
     nocase: bool,
+    ext: String,
+    rootdir: String,
+    invmatch: bool,
     debug: bool,
 }
 
@@ -90,20 +90,40 @@ impl Config
             return Ok(Config { query, rootdir, nocase, ext, invmatch, debug });
         }
     }
+
+    pub fn summarize(&self) -> String
+    {
+        let mut summary = format!("---- search for '{}'", self.query);
+        if self.nocase
+        {
+            summary += ", nocase";
+        }
+        if self.ext.len() > 0
+        {
+            summary += &format!(", ext: {}", self.ext);
+        }
+
+        summary += " ----------------------------";
+        return summary;
+    }
 }
 
-pub fn run(config: &Config) -> io::Result<()>
+pub fn run(config: &Config, ndirs: &mut u32, nfiles: &mut u32, nlines: &mut u32) -> io::Result<()>
 {
     let root_path = Path::new(&config.rootdir);
-    return visit_files_below(root_path, config, &search_file);
+    return visit_files_below(root_path, config, &search_file, 
+                            ndirs, nfiles, nlines);
 }
 
 // https://doc.rust-lang.org/stable/std/fs/fn.read_dir.html
 fn visit_files_below(dir: &Path, cfg: &Config,
-        cb: &dyn Fn(&DirEntry, &Config, &OsString)) -> io::Result<()>
+        cb: &dyn Fn(&DirEntry, &Config, &OsString, &mut u32, &mut u32),
+        ndirs: &mut u32, nfiles: &mut u32, nlines: &mut u32,
+    ) -> io::Result<()>
 {
     if dir.is_dir()
     {
+        *ndirs += 1;
         if cfg.debug 
         {
             println!("visiting {:?}", dir.as_os_str());
@@ -124,7 +144,7 @@ fn visit_files_below(dir: &Path, cfg: &Config,
             }
             if path.is_dir()
             {
-                match visit_files_below(&path, cfg, cb)
+                match visit_files_below(&path, cfg, cb, ndirs, nfiles, nlines)
                 {
                     Ok(()) => continue,
                     Err(e) => return Err(e)
@@ -134,7 +154,7 @@ fn visit_files_below(dir: &Path, cfg: &Config,
             {
                 if file_is_interesting(&path, cfg)
                 {
-                    cb(&entry, cfg, &os_file_name);
+                    cb(&entry, cfg, &os_file_name, nfiles, nlines);
                 }
             }
         }
@@ -175,18 +195,20 @@ fn fileext_implies_binary(ext: &OsStr) -> bool
     }
 }
 
-fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
+fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString, 
+            nfiles: &mut u32, nlines: &mut u32)
 {
     if cfg.debug 
     {
-        println!("reading {:?}", osfn.to_str().unwrap());
+        println!("reading {:?}", osfn.to_str().unwrap().dimmed());
     }
+    *nfiles += 1;
     match fs::read_to_string(f.path())
     {
         Ok(contents) =>
         {
             let mut nmatch = 0;
-            for (line, lineno) in search(&cfg.query, &contents, cfg)
+            for (line, lineno) in search(&cfg.query, &contents, cfg, nlines)
             {
                 nmatch += 1;
                 if !cfg.invmatch
@@ -198,7 +220,14 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
                         println!("{}", nfnm.cyan());
                     }
                     let oline = format!("{:width$}", lineno, width=4);
-                    println!(" {}: {line}", oline.blue());
+                    if line.len() < 80
+                    {
+                        println!(" {}: {}", oline.blue(), line);
+                    }
+                    else
+                    {
+                        println!(" {}: {:.80} {}", oline.blue(), line, "...".blue());
+                    }
                 }
             }
         },
@@ -211,38 +240,45 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString)
     }
 }
 
-pub fn search<'a>(query: &str, contents: &'a str, cfg: &Config)
-    -> Vec<(&'a str, i32)>
+pub fn search<'a>(query: &str, contents: &'a str, cfg: &Config, nlines: &mut u32)
+    -> Vec<(&'a str, u32)>
 {
-    let mut lineno = 1;
     if cfg.nocase
     {
-        return contents
-            .lines()
-            .filter(|line| 
-                {
-                    line.to_lowercase().contains(query)
-                })
+        let mut lineno: u32 = 1;
+        let x:Vec<(&str, u32)> = contents .lines()
             .map(|line| 
                 {
                     let ret = (line, lineno);
                     lineno += 1;
                     return ret;
                 })
+            .filter(|line| 
+                {
+                    line.0.to_lowercase().contains(query)
+                })
             .collect();
+        *nlines += lineno;
+        return x;
     }
     else
     {
-        return contents
+        let mut lineno = 1;
+        let x = contents
             .lines()
-            .filter(|line| line.contains(query))
             .map(|line| 
                 {
                     let ret = (line, lineno);
                     lineno += 1;
                     return ret;
                 })
+            .filter(|line| 
+                {
+                    line.0.contains(query)
+                })
             .collect();
+        *nlines += lineno;
+        return x;
     }
 }
 
