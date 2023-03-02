@@ -9,11 +9,16 @@
 - [Converting String Types](#converting-string-types)
 - [Slices](#slices)
 - [Fn closures](#fn-closures)
+- [Lifetime](#lifetime)
 - [Iterators](#iterators)
   - [consuming adaptor (eg sum)](#consuming-adaptor-eg-sum)
   - [iterator adaptor](#iterator-adaptor)
+  - [List iterator (mutable and immutable), Lifetimes](#list-iterator-mutable-and-immutable-lifetimes)
+  - [List::peek\_mut, iter\_mut](#listpeek_mut-iter_mut)
 - [Rc\<T\> , Weak\<T\>](#rct--weakt)
 - [RefCell and Interior Mutability](#refcell-and-interior-mutability)
+  - [Shared mutable map (borrow\_mut)](#shared-mutable-map-borrow_mut)
+  - [Shared Mutable Nodes (borrow\_mut)](#shared-mutable-nodes-borrow_mut)
 - [Patterns](#patterns)
   - [match arms](#match-arms)
   - [conditional if/while let](#conditional-ifwhile-let)
@@ -281,9 +286,33 @@ fn main() {
     // println!("(error) after defining closure: {:?}", list);
 }
  ```
+---
+## Lifetime
+
+Every reference has a lifetime.
+
+Rust offers a means to express lifetime expectations associated
+with references.  These are relative to other reference lifetimes.
+
+`fn longest<'a,'b>(x: &'a str, y: &'b str) -> &'a str`
+
+`struct ImportantExcerpt<'a> { part: &'a str, }`
+means an instance of ImportantExcerpt can’t outlive the 
+reference it holds in its part field.
+
+Rules:
+
+1. the compiler assigns a lifetime parameter to each
+parameter that’s a reference. 
+2. , if there is exactly one input lifetime parameter,
+that lifetime is assigned to all output lifetime parameters.
+3. if there are multiple input lifetime parameters,
+but one of them is `&self` or `&mut self`, the lifetime 
+of self is assigned to all output lifetime parameters. 
+This third rule makes methods much nicer to read and 
+write because fewer symbols are necessary.
 
 ---
-
 ## Iterators
 
 All iterators implement the `Iterator` trait:
@@ -344,6 +373,40 @@ assert_eq!(v2, vec![2, 3, 4]);
 > are lazy, you have to call one of the consuming adapter methods 
 > to get results from calls to iterator adapters.
 
+### List iterator (mutable and immutable), Lifetimes
+
+[link](https://rust-unofficial.github.io/too-many-lists/second-iter.html)
+
+---
+### List::peek_mut, iter_mut
+
+[An OK Stack](https://rust-unofficial.github.io/too-many-lists/second-final.html)
+
+```rs
+assert_eq!(list.peek_mut(), Some(&mut 3));
+list.peek_mut().map(|value| { *value = 42 });
+```
+
+[IterMut](https://rust-unofficial.github.io/too-many-lists/second-iter-mut.html)
+
+```rs
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
+impl<'a, T> Iterator for IterMut<'a, T> 
+{
+    type Item = &'a mut T;
+    fn next(&mut self) -> Option<Self::Item> 
+    {
+        return self.next.take().map(|node| 
+        {
+            self.next = node.next.as_deref_mut();
+            &mut node.elem
+        });
+    }
+}
+```
+
 ---
 ## Rc\<T\> , Weak\<T\>
 
@@ -375,14 +438,36 @@ struct Node {
 
 ## RefCell and Interior Mutability
 
-* `Rc<T>` enables multiple owners of the same data; Box<T> and RefCell<T>
-  have single owners.
 * `Box<T>` allows immutable or mutable borrows checked at compile time;
   `Rc<T>` allows only immutable borrows checked at compile time; RefCell<T>
   allows immutable or mutable borrows checked at runtime.
+* `Rc<T>` enables multiple owners of the same data; Box<T> and RefCell<T>
+  have single owners.
 * Because `RefCell<T>` allows mutable borrows checked at runtime, you
   can mutate the value inside the RefCell<T> even when the RefCell<T> is
   immutable.
+
+### Shared mutable map (borrow_mut)
+
+```rs
+use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let shared_map: Rc<RefCell<_>> = Rc::new(RefCell::new(HashMap::new()));
+    shared_map.borrow_mut().insert("africa", 92388);
+    shared_map.borrow_mut().insert("kyoto", 11837);
+    shared_map.borrow_mut().insert("piccadilly", 11826);
+    shared_map.borrow_mut().insert("marbles", 38);
+}
+```
+
+Note that this example uses Rc<T> and not Arc<T>. RefCell<T>s are for 
+single-threaded scenarios. Consider using Mutex<T> if you need shared 
+mutability in a multi-threaded situation.
+
+### Shared Mutable Nodes (borrow_mut)
 
 ```rs
 #[derive(Debug)]

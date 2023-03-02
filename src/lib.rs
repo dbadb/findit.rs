@@ -235,7 +235,7 @@ fn search_file(f: &DirEntry, cfg: &Config, osfn: &OsString,
         {
             let fnm = f.path().into_os_string().into_string().unwrap();
             let nfnm = fnm.replace("\\", "/");
-            println!("{} {}", nfnm.cyan(), "skipped".red());
+            println!("{} {}", nfnm.red(), "skipped".red());
         }
     }
 }
@@ -292,6 +292,8 @@ phf_set! {
     "node_modules",
     ".git",
     ".built",
+    ".vscode",
+    ".vs", // visual studio
     "target", // rust
 };
 
